@@ -1,4 +1,4 @@
-import { Segment, SegmentType } from '../types'
+import type { Segment } from '../types'
 
 // Unicode letter: latin + greek (U+0370–U+03FF) + extended
 const LETTER = /[a-zA-ZͰ-Ͽἀ-῿]/
