@@ -76,6 +76,10 @@ export default function App() {
         )}
       </div>
 
+      {symbolsPanelOpen && (
+        <SymbolsPanel onInsert={handleInsertSymbol} mobile />
+      )}
+
       <HistoryPanel />
     </div>
   )

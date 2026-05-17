@@ -30,3 +30,8 @@ body {
 .result-zoom-wrapper {
   touch-action: pan-y pinch-zoom;
 }
+
+.matrix-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}

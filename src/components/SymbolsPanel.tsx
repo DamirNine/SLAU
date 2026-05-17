@@ -9,23 +9,18 @@ const SYMBOL_GROUPS = [
 
 interface Props {
   onInsert: (symbol: string) => void
+  mobile?: boolean
 }
 
-const panelStyle: React.CSSProperties = {
-  width: 220,
-  background: '#1a1a2e',
-  border: '1.5px solid #3a3a5a',
-  borderRadius: 12,
-  overflow: 'hidden',
-  flexShrink: 0,
-}
-
-export function SymbolsPanel({ onInsert }: Props) {
+export function SymbolsPanel({ onInsert, mobile = false }: Props) {
+  const panelStyle: React.CSSProperties = mobile
+    ? { background: '#1a1a2e', border: '1.5px solid #3a3a5a', borderRadius: '12px 12px 0 0', overflow: 'hidden' }
+    : { width: 220, background: '#1a1a2e', border: '1.5px solid #3a3a5a', borderRadius: 12, overflow: 'hidden', flexShrink: 0 }
   const { symbolsPanelOpen, toggleSymbolsPanel } = useStore()
   if (!symbolsPanelOpen) return null
 
   return (
-    <div className="symbols-panel-desktop" style={panelStyle}>
+    <div className={mobile ? 'symbols-panel-mobile' : 'symbols-panel-desktop'} style={panelStyle}>
       <div style={{
         background: '#22223a',
         padding: '10px 14px',
