@@ -105,9 +105,12 @@ function buildSymbolicMatrix(rows: EquationRow[], variables: string[]): string[]
           const next = segs[i + 1]
           const afterStar = next?.value === '*' ? segs[i + 2] : null
           if (next?.type !== 'variable' && afterStar?.type !== 'variable') {
-            // Standalone parameter: goes to RHS (its side)
             if (onRhs) rhsParts.push(pendingParam)
-            else rhsParts.push(sign < 0 ? pendingParam : `-${pendingParam}`)
+            else {
+              // LHS param moves to RHS negated (pendingParam already carries its sign)
+              const neg = pendingParam.startsWith('-') ? pendingParam.slice(1) : `-${pendingParam}`
+              rhsParts.push(neg)
+            }
             pendingParam = null; sign = 1
           }
           continue
@@ -204,11 +207,19 @@ export function solveSymbolic(rows: EquationRow[], variables: string[]): SolveRe
     } else {
       const solutions = nerd.solveEquations(eqStrings, nerdVars)
       if (Array.isArray(solutions)) {
-        for (let i = 0; i < variables.length; i++) {
-          const raw = Array.isArray(solutions[i])
-            ? String(solutions[i][0] ?? '')
-            : String(solutions[i] ?? '')
-          answer[variables[i]] = fromNerdResult(raw, reverseVarMap, reverseParamMap)
+        if (solutions.length > 0 && Array.isArray(solutions[0])) {
+          // Format: [[varName, value], ...] — match by variable name, not index
+          for (const pair of solutions) {
+            const nv = String((pair as [unknown, unknown])[0])
+            const val = String((pair as [unknown, unknown])[1] ?? '')
+            const display = reverseVarMap.get(nv)
+            if (display) answer[display] = fromNerdResult(val, reverseVarMap, reverseParamMap)
+          }
+        } else {
+          // Format: [value0, value1, ...] — indexed by variable order
+          for (let i = 0; i < variables.length && i < solutions.length; i++) {
+            answer[variables[i]] = fromNerdResult(String(solutions[i]), reverseVarMap, reverseParamMap)
+          }
         }
       } else {
         const parts = String(solutions).split(',')
