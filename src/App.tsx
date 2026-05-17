@@ -5,15 +5,35 @@ import { Toolbar } from './components/Toolbar'
 import { SymbolsPanel } from './components/SymbolsPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { ResultPanel } from './components/ResultPanel'
-import { normalizeForSolver, extractVariables } from './parser/normalizer'
+import { ParameterPanel } from './components/ParameterPanel'
+import { normalizeForSolver } from './parser/normalizer'
 import { solveNumeric } from './solver/numeric'
-import { solveSymbolic } from './solver/symbolic'
-import type { SolveResult } from './types'
+import { buildSymbolicMatrix } from './solver/symbolic'
+import type { EquationRow as IEquationRow, SolveResult } from './types'
+
+function extractUniqueParams(rows: IEquationRow[]): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const row of rows) {
+    for (const seg of row.segments) {
+      if (seg.type !== 'parameter') continue
+      const name = seg.value.slice(1, -1).trim()
+      if (!seen.has(name)) { seen.add(name); result.push(name) }
+    }
+  }
+  return result
+}
 
 export default function App() {
   const { equations, undo, redo, pushHistory, symbolsPanelOpen, appendToRow } = useStore()
   const [result, setResult] = useState<SolveResult | null>(null)
   const [mirroredPairs, setMirroredPairs] = useState<Array<{ canonical: string; mirrored: string }>>([])
+  const [paramState, setParamState] = useState<{
+    names: string[]
+    variables: string[]
+    matrix: string[][]
+    pairs: Array<{ canonical: string; mirrored: string }>
+  } | null>(null)
   const activeRowId = useRef<string | null>(null)
 
   useEffect(() => {
@@ -26,20 +46,40 @@ export default function App() {
   }, [undo, redo])
 
   const handleSolve = () => {
-    const { equations: normalized, variables, pairs } = normalizeForSolver(equations)
-    const hasParams = equations.some(row => row.segments.some(s => s.type === 'parameter'))
+    const { variables, pairs } = normalizeForSolver(equations)
+    const paramNames = extractUniqueParams(equations)
 
-    let res: SolveResult
-    if (hasParams) {
-      const vars = extractVariables(equations)
-      res = solveSymbolic(equations, vars)
-    } else {
-      res = solveNumeric(normalized, variables)
+    const mirrorMap = new Map<string, { canonical: string; sign: number }>()
+    for (const p of pairs) mirrorMap.set(p.mirrored, { canonical: p.canonical, sign: -1 })
+
+    if (paramNames.length > 0) {
+      const matrix = buildSymbolicMatrix(equations, variables, mirrorMap)
+      setParamState({ names: paramNames, variables, matrix, pairs })
+      setResult(null)
+      setMirroredPairs([])
+      return
     }
-    res.mirroredPairs = pairs
 
+    const { equations: normalized } = normalizeForSolver(equations)
+    const res = solveNumeric(normalized, variables)
+    res.mirroredPairs = pairs
     setResult(res)
     setMirroredPairs(pairs)
+    setParamState(null)
+    pushHistory(res)
+  }
+
+  const handleSolveWithParams = (paramValues: Record<string, number>) => {
+    if (!paramState) return
+    const { equations: normalized, variables, pairs } = normalizeForSolver(equations, paramValues)
+    const mirrorMap = new Map<string, { canonical: string; sign: number }>()
+    for (const p of pairs) mirrorMap.set(p.mirrored, { canonical: p.canonical, sign: -1 })
+    const res = solveNumeric(normalized, variables)
+    res.mirroredPairs = pairs
+    res.initialMatrix = paramState.matrix
+    setResult(res)
+    setMirroredPairs(pairs)
+    setParamState(null)
     pushHistory(res)
   }
 
@@ -65,6 +105,15 @@ export default function App() {
               <EquationRow row={row} index={i} />
             </div>
           ))}
+
+          {paramState && (
+            <ParameterPanel
+              paramNames={paramState.names}
+              variables={paramState.variables}
+              matrix={paramState.matrix}
+              onSolve={handleSolveWithParams}
+            />
+          )}
 
           {result && (
             <ResultPanel result={result} mirroredPairs={mirroredPairs} />

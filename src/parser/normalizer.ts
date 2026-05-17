@@ -61,7 +61,7 @@ export interface LinearEquation {
   rhs: number
 }
 
-export function normalizeForSolver(rows: EquationRow[]): {
+export function normalizeForSolver(rows: EquationRow[], paramValues?: Record<string, number>): {
   equations: LinearEquation[]
   variables: string[]
   pairs: Array<{ canonical: string; mirrored: string }>
@@ -90,7 +90,7 @@ export function normalizeForSolver(rows: EquationRow[]): {
   const allVarNames = varKeys.map(v => displayName(v))
   const variables = allVarNames.filter(v => !mirrorMap.has(v))
 
-  const equations: LinearEquation[] = rows.map(row => parseRow(row, variables, mirrorMap))
+  const equations: LinearEquation[] = rows.map(row => parseRow(row, variables, mirrorMap, paramValues))
 
   return {
     equations,
@@ -102,7 +102,8 @@ export function normalizeForSolver(rows: EquationRow[]): {
 function parseRow(
   row: EquationRow,
   variables: string[],
-  mirrorMap: Map<string, { canonical: string; sign: number }>
+  mirrorMap: Map<string, { canonical: string; sign: number }>,
+  paramValues?: Record<string, number>
 ): LinearEquation {
   const coefficients: Record<string, number> = {}
   for (const v of variables) coefficients[v] = 0
@@ -121,22 +122,47 @@ function parseRow(
     if (seg.type === 'operator') {
       if (seg.value === '-') { sign = -1; pendingCoeff = null }
       else if (seg.value === '+') { sign = 1; pendingCoeff = null }
-      // '*': keep pendingCoeff so "2*x" works same as "2x"
+      // '*': keep pendingCoeff
       continue
     }
 
     if (seg.type === 'number') {
       pendingCoeff = parseFloat(seg.value) * sign
-      // Check if a variable follows (possibly after '*')
       const next = segs[i + 1]
       const afterStar = next?.value === '*' ? segs[i + 2] : null
+      // varFollows: variable directly, after *, or via parameter then variable
       const varFollows = next?.type === 'variable' || afterStar?.type === 'variable'
+        || (paramValues && (next?.type === 'parameter' || afterStar?.type === 'parameter'))
       if (!varFollows) {
-        // Standalone constant: RHS stays, LHS moves to right side (negated)
         if (onRhs) rhs += pendingCoeff
         else rhs -= pendingCoeff
-        pendingCoeff = null
-        sign = 1
+        pendingCoeff = null; sign = 1
+      }
+      continue
+    }
+
+    // Parameter with substituted value: 3(K)x or (K)3x → pendingCoeff *= K_value
+    if (seg.type === 'parameter' && paramValues) {
+      const name = seg.value.slice(1, -1).trim()
+      const val = (paramValues[name] ?? 1) * sign
+      sign = 1
+      pendingCoeff = pendingCoeff !== null ? pendingCoeff * val : val
+      const next = segs[i + 1]
+      const afterStar = next?.value === '*' ? segs[i + 2] : null
+      let varFollows = next?.type === 'variable' || afterStar?.type === 'variable'
+      // (K)3x: parameter followed by number then variable
+      if (!varFollows && next?.type === 'number') {
+        const afterNum = segs[i + 2]
+        if (afterNum?.type === 'variable') {
+          pendingCoeff = (pendingCoeff ?? 1) * parseFloat(next.value)
+          i++
+          varFollows = true
+        }
+      }
+      if (!varFollows) {
+        if (onRhs) rhs += pendingCoeff
+        else rhs -= pendingCoeff
+        pendingCoeff = null; sign = 1
       }
       continue
     }
@@ -148,12 +174,10 @@ function parseRow(
       const target = mirror ? mirror.canonical : dn
       const effectiveCoeff = mirror ? coeff * mirror.sign : coeff
       if (target in coefficients) {
-        // Variables on RHS move to LHS with negated coefficient
         if (onRhs) coefficients[target] -= effectiveCoeff
         else coefficients[target] += effectiveCoeff
       }
-      pendingCoeff = null
-      sign = 1
+      pendingCoeff = null; sign = 1
       continue
     }
   }

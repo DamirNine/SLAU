@@ -32,9 +32,12 @@ export function tokenize(input: string): Segment[] {
         if (input[j] === ')') depth--
         j++
       }
-      const inner = input.slice(i + 1, j - 1)
-      // If inner contains operators → mathematical grouping: flatten inner tokens
-      if (/[+\-*/]/.test(inner)) {
+      const inner = input.slice(i + 1, j - 1).trim()
+      // All-numeric inner → treat as plain number, not parameter
+      if (/^[0-9]+(\.[0-9]+)?$/.test(inner)) {
+        segments.push({ type: 'number', value: inner, id: makeId(), sub: '', sup: '' })
+      } else if (/[+\-*/]/.test(inner)) {
+        // If inner contains operators → mathematical grouping: flatten inner tokens
         segments.push(...tokenize(inner))
       } else {
         // Simple identifier → symbolic parameter (shown in orange)

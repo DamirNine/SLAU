@@ -1,6 +1,15 @@
 import { useState } from 'react'
+import Fraction from 'fraction.js'
 import type { SolveResult } from '../types'
 import { SolutionSteps } from './SolutionSteps'
+import { renderVarDisplay, renderMathExpr } from '../utils/renderMath'
+
+function formatAnswer(val: string): string {
+  if (/^-?[0-9]+\.[0-9]+$/.test(val.trim())) {
+    try { return new Fraction(val.trim()).toFraction() } catch { /* fall through */ }
+  }
+  return val
+}
 
 interface Props {
   result: SolveResult
@@ -28,15 +37,15 @@ function MatrixTable({ variables, matrix }: { variables: string[]; matrix: strin
       <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr>
-            {variables.map(v => <th key={v} style={headerStyle}>{v}</th>)}
+            {variables.map(v => <th key={v} style={headerStyle}>{renderVarDisplay(v)}</th>)}
             <th style={{ ...headerStyle, ...augStyle }}>b</th>
           </tr>
         </thead>
         <tbody>
           {matrix.map((row, i) => (
             <tr key={i} style={{ background: i % 2 === 1 ? '#1e1e35' : 'transparent' }}>
-              {row.slice(0, -1).map((cell, j) => <td key={j} style={cellStyle}>{cell}</td>)}
-              <td style={augStyle}>{row[row.length - 1]}</td>
+              {row.slice(0, -1).map((cell, j) => <td key={j} style={cellStyle}>{renderMathExpr(cell)}</td>)}
+              <td style={augStyle}>{renderMathExpr(row[row.length - 1])}</td>
             </tr>
           ))}
         </tbody>
@@ -50,7 +59,7 @@ export function ResultPanel({ result, mirroredPairs }: Props) {
 
   const handleCopy = () => {
     const text = Object.entries(result.answer)
-      .map(([k, v]) => `${k} = ${v}`)
+      .map(([k, v]) => `${k} = ${formatAnswer(v)}`)
       .join('\n')
     navigator.clipboard.writeText(text)
   }
@@ -162,11 +171,13 @@ export function ResultPanel({ result, mirroredPairs }: Props) {
         {Object.entries(result.answer).map(([k, v]) => {
           const pair = mirroredPairs.find(p => p.canonical === k)
           return (
-            <div key={k} style={{ fontFamily: 'monospace', fontSize: 15, color: '#aaffaa', marginBottom: 6 }}>
-              {k} = {v}
+            <div key={k} style={{ fontFamily: 'monospace', fontSize: 15, color: '#aaffaa', marginBottom: 8, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+              <span>{renderVarDisplay(k)}</span>
+              <span style={{ margin: '0 4px' }}>=</span>
+              <span>{renderMathExpr(formatAnswer(v))}</span>
               {pair && (
-                <span style={{ color: '#666', fontSize: 12, marginLeft: 12 }}>
-                  ({pair.mirrored} = −{k} = {v.startsWith('-') ? v.slice(1) : `−${v}`})
+                <span style={{ color: '#666', fontSize: 12, marginLeft: 8 }}>
+                  ({renderVarDisplay(pair.mirrored)} = −{renderVarDisplay(k)} = {renderMathExpr(v.startsWith('-') ? v.slice(1) : `−${v}`)})
                 </span>
               )}
             </div>

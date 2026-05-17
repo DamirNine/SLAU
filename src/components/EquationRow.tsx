@@ -2,7 +2,7 @@ import { useRef, useState, useCallback } from 'react'
 import type { EquationRow as IEquationRow, Segment } from '../types'
 import { IndexPopup } from './IndexPopup'
 import { useStore } from '../store'
-import { displayName } from '../parser/normalizer'
+
 
 interface Props {
   row: IEquationRow
@@ -92,9 +92,12 @@ export function EquationRow({ row, index }: Props) {
                       cursor: 'pointer',
                       fontSize: 14,
                       userSelect: 'none',
+                      lineHeight: 1.6,
                     }}
                   >
-                    {displayName(seg)}
+                    {seg.value}
+                    {seg.sub && <sub style={{ fontSize: '0.62em', lineHeight: 0 }}>{seg.sub}</sub>}
+                    {seg.sup && <sup style={{ fontSize: '0.62em', lineHeight: 0 }}>{seg.sup}</sup>}
                   </span>
                 )
               }

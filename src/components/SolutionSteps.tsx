@@ -1,4 +1,5 @@
 import type { GaussStep } from '../types'
+import { renderVarDisplay, renderMathExpr } from '../utils/renderMath'
 
 interface Props {
   variables: string[]
@@ -36,15 +37,15 @@ function MatrixTable({ variables, matrix }: { variables: string[]; matrix: strin
       <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr>
-            {variables.map(v => <th key={v} style={headerStyle}>{v}</th>)}
+            {variables.map(v => <th key={v} style={headerStyle}>{renderVarDisplay(v)}</th>)}
             <th style={{ ...headerStyle, ...augStyle }}>b</th>
           </tr>
         </thead>
         <tbody>
           {matrix.map((row, i) => (
             <tr key={i} style={{ background: i % 2 === 1 ? '#1e1e35' : 'transparent' }}>
-              {row.slice(0, -1).map((cell, j) => <td key={j} style={cellStyle}>{cell}</td>)}
-              <td style={augStyle}>{row[row.length - 1]}</td>
+              {row.slice(0, -1).map((cell, j) => <td key={j} style={cellStyle}>{renderMathExpr(cell)}</td>)}
+              <td style={augStyle}>{renderMathExpr(row[row.length - 1])}</td>
             </tr>
           ))}
         </tbody>
