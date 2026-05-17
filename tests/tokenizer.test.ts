@@ -26,9 +26,20 @@ describe('tokenize', () => {
     expect(segs[0].value).toBe('(X_m)')
   })
 
-  it('parses parameter with expression', () => {
+  it('flattens grouped expression (with operators) into inner tokens', () => {
     const segs = tokenize('(k + b)')
+    const nonWs = segs.filter(s => s.type !== 'whitespace')
+    expect(nonWs[0].type).toBe('variable')
+    expect(nonWs[0].value).toBe('k')
+    expect(nonWs[1].type).toBe('operator')
+    expect(nonWs[2].type).toBe('variable')
+    expect(nonWs[2].value).toBe('b')
+  })
+
+  it('keeps simple identifier as parameter', () => {
+    const segs = tokenize('(K)')
     expect(segs[0].type).toBe('parameter')
+    expect(segs[0].value).toBe('(K)')
   })
 
   it('parses full equation', () => {

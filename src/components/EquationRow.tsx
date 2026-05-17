@@ -28,103 +28,115 @@ export function EquationRow({ row, index }: Props) {
     if (window.confirm('Удалить это уравнение?')) removeRow(row.id)
   }
 
+  const hasVariables = row.segments.some(s => s.type === 'variable')
+  const hasContent = row.rawText.trim().length > 0
+
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
       <span style={{ color: '#555', fontSize: 13, width: 24, textAlign: 'right', paddingTop: 11, flexShrink: 0 }}>
         {index + 1}.
       </span>
 
-      {/* Wrapper: positions input behind token display */}
-      <div style={{ flex: 1, position: 'relative', minHeight: 42 }}>
-        {/* Transparent input: accepts typing, caret visible */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Visible input — standard cursor, full text visible */}
         <input
           ref={inputRef}
           value={row.rawText}
           onChange={handleChange}
-          placeholder=" "
+          placeholder="введи уравнение..."
           style={{
-            position: 'absolute',
-            inset: 0,
             width: '100%',
-            height: '100%',
-            background: 'transparent',
-            border: '1.5px solid transparent',
-            borderRadius: 8,
+            background: '#1e1e30',
+            border: '1.5px solid #3a3a5a',
+            borderRadius: hasContent ? '8px 8px 0 0' : 8,
             outline: 'none',
             fontSize: 16,
             padding: '8px 12px',
-            color: 'transparent',
+            color: '#e0e0e0',
             caretColor: '#a0cfff',
-            zIndex: 1,
-            cursor: 'text',
           }}
+          onFocus={e => (e.currentTarget.style.borderColor = '#5a5aaa')}
+          onBlur={e => (e.currentTarget.style.borderColor = '#3a3a5a')}
         />
 
-        {/* Visual overlay: token chips + border */}
-        <div
-          onClick={() => inputRef.current?.focus()}
-          style={{
-            background: '#1e1e30',
-            border: '1.5px solid #3a3a5a',
-            borderRadius: 8,
-            padding: '8px 12px',
-            minHeight: 42,
+        {/* Parsed chip preview — only when there's content */}
+        {hasContent && (
+          <div style={{
             display: 'flex',
-            alignItems: 'center',
             flexWrap: 'wrap',
+            alignItems: 'center',
             gap: 3,
-            fontSize: 16,
-            cursor: 'text',
-            pointerEvents: 'none', // let clicks pass to input below
-            position: 'relative',
-            zIndex: 0,
-          }}
-        >
-          {row.rawText === '' && (
-            <span style={{ color: '#444' }}>введи уравнение...</span>
-          )}
-          {row.segments.map(seg => {
-            if (seg.type === 'whitespace') {
-              return <span key={seg.id} style={{ display: 'inline-block', width: 5 }} />
-            }
-            if (seg.type === 'variable' || seg.type === 'parameter') {
-              const isVar = seg.type === 'variable'
+            padding: '5px 10px',
+            background: '#16162a',
+            borderLeft: '1.5px solid #3a3a5a',
+            borderRight: '1.5px solid #3a3a5a',
+            borderBottom: '1.5px solid #3a3a5a',
+            borderRadius: '0 0 8px 8px',
+          }}>
+            {row.segments.map(seg => {
+              if (seg.type === 'whitespace') {
+                return <span key={seg.id} style={{ display: 'inline-block', width: 4 }} />
+              }
+              if (seg.type === 'variable') {
+                return (
+                  <span
+                    key={seg.id}
+                    title="Кликни для индексов"
+                    onClick={e => handleSegClick(seg, e)}
+                    style={{
+                      color: '#a0cfff',
+                      background: '#2a2a44',
+                      border: '1.5px solid #4a4aaa',
+                      borderRadius: 5,
+                      padding: '0 5px',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      userSelect: 'none',
+                    }}
+                  >
+                    {displayName(seg)}
+                  </span>
+                )
+              }
+              if (seg.type === 'parameter') {
+                return (
+                  <span
+                    key={seg.id}
+                    title="Параметр"
+                    style={{
+                      color: '#ffa040',
+                      background: '#2a1a00',
+                      border: '1.5px solid #7a5a00',
+                      borderRadius: 5,
+                      padding: '0 5px',
+                      fontSize: 14,
+                      userSelect: 'none',
+                    }}
+                  >
+                    {seg.value}
+                  </span>
+                )
+              }
               return (
                 <span
                   key={seg.id}
-                  title={isVar ? 'Кликни для индексов' : 'Параметр — кликни для индексов'}
-                  onClick={e => handleSegClick(seg, e)}
                   style={{
-                    color: isVar ? '#a0cfff' : '#ffa040',
-                    background: isVar ? '#2a2a44' : '#2a1a00',
-                    border: `1.5px solid ${isVar ? '#4a4aaa' : '#7a5a00'}`,
-                    borderRadius: 5,
-                    padding: '0 5px',
-                    cursor: 'pointer',
-                    fontSize: 15,
-                    userSelect: 'none',
-                    position: 'relative',
-                    zIndex: 3,         // above the input (z-index 1)
-                    pointerEvents: 'auto',
+                    fontSize: 14,
+                    color: seg.type === 'operator' || seg.type === 'equals'
+                      ? '#888' : seg.type === 'number' ? '#e0e0e0' : '#ccc',
                   }}
                 >
-                  {isVar ? displayName(seg) : seg.value}
+                  {seg.value}
                 </span>
               )
-            }
-            return (
-              <span
-                key={seg.id}
-                style={{
-                  color: seg.type === 'operator' || seg.type === 'equals'
-                    ? '#888' : seg.type === 'number' ? '#e0e0e0' : '#ccc',
-                }}
-              >
-                {seg.value}
+            })}
+            {hasVariables && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#444', paddingLeft: 8 }}>
+                кликни переменную для индекса
               </span>
-            )
-          })}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       <button

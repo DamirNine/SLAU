@@ -24,7 +24,7 @@ export function tokenize(input: string): Segment[] {
       continue
     }
 
-    // Parameter: (...) with nested paren support
+    // Parameter or grouping: (...)
     if (ch === '(') {
       let j = i + 1, depth = 1
       while (j < input.length && depth > 0) {
@@ -32,7 +32,14 @@ export function tokenize(input: string): Segment[] {
         if (input[j] === ')') depth--
         j++
       }
-      segments.push({ type: 'parameter', value: input.slice(i, j), id: makeId(), sub: '', sup: '' })
+      const inner = input.slice(i + 1, j - 1)
+      // If inner contains operators → mathematical grouping: flatten inner tokens
+      if (/[+\-*/]/.test(inner)) {
+        segments.push(...tokenize(inner))
+      } else {
+        // Simple identifier → symbolic parameter (shown in orange)
+        segments.push({ type: 'parameter', value: input.slice(i, j), id: makeId(), sub: '', sup: '' })
+      }
       i = j
       continue
     }

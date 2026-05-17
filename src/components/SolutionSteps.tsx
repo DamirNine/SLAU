@@ -5,6 +5,7 @@ interface Props {
   initialMatrix: string[][]
   steps: GaussStep[]
   backSubstitution: string[]
+  hideInitialMatrix?: boolean
 }
 
 const cellStyle: React.CSSProperties = {
@@ -52,11 +53,15 @@ function MatrixTable({ variables, matrix }: { variables: string[]; matrix: strin
   )
 }
 
-export function SolutionSteps({ variables, initialMatrix, steps, backSubstitution }: Props) {
+export function SolutionSteps({ variables, initialMatrix, steps, backSubstitution, hideInitialMatrix }: Props) {
   return (
     <div>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>Расширенная матрица системы:</div>
-      <MatrixTable variables={variables} matrix={initialMatrix} />
+      {!hideInitialMatrix && (
+        <>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>Расширенная матрица системы:</div>
+          <MatrixTable variables={variables} matrix={initialMatrix} />
+        </>
+      )}
 
       {steps.map((step, i) => (
         <div key={i} style={{ marginBottom: 14 }}>

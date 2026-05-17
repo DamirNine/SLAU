@@ -116,21 +116,25 @@ function parseRow(
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i]
 
-    if (seg.type === 'equals') { onRhs = true; sign = 1; continue }
+    if (seg.type === 'equals') { onRhs = true; sign = 1; pendingCoeff = null; continue }
 
     if (seg.type === 'operator') {
-      if (seg.value === '-') sign = -1
-      else if (seg.value === '+') sign = 1
-      pendingCoeff = null
+      if (seg.value === '-') { sign = -1; pendingCoeff = null }
+      else if (seg.value === '+') { sign = 1; pendingCoeff = null }
+      // '*': keep pendingCoeff so "2*x" works same as "2x"
       continue
     }
 
     if (seg.type === 'number') {
       pendingCoeff = parseFloat(seg.value) * sign
-      // If next segment is not a variable, this number is standalone (rhs or coeff without var)
+      // Check if a variable follows (possibly after '*')
       const next = segs[i + 1]
-      if (!next || next.type !== 'variable') {
+      const afterStar = next?.value === '*' ? segs[i + 2] : null
+      const varFollows = next?.type === 'variable' || afterStar?.type === 'variable'
+      if (!varFollows) {
+        // Standalone constant: RHS stays, LHS moves to right side (negated)
         if (onRhs) rhs += pendingCoeff
+        else rhs -= pendingCoeff
         pendingCoeff = null
         sign = 1
       }
@@ -140,13 +144,13 @@ function parseRow(
     if (seg.type === 'variable') {
       const dn = displayName(seg)
       const coeff = pendingCoeff ?? sign
-      if (onRhs) {
-        rhs -= coeff
-      } else {
-        const mirror = mirrorMap.get(dn)
-        const target = mirror ? mirror.canonical : dn
-        const effectiveCoeff = mirror ? coeff * mirror.sign : coeff
-        if (target in coefficients) coefficients[target] += effectiveCoeff
+      const mirror = mirrorMap.get(dn)
+      const target = mirror ? mirror.canonical : dn
+      const effectiveCoeff = mirror ? coeff * mirror.sign : coeff
+      if (target in coefficients) {
+        // Variables on RHS move to LHS with negated coefficient
+        if (onRhs) coefficients[target] -= effectiveCoeff
+        else coefficients[target] += effectiveCoeff
       }
       pendingCoeff = null
       sign = 1

@@ -7,6 +7,44 @@ interface Props {
   mirroredPairs: Array<{ canonical: string; mirrored: string }>
 }
 
+const cellStyle: React.CSSProperties = {
+  padding: '5px 12px',
+  textAlign: 'center',
+  border: '1px solid #2a2a4a',
+  color: '#ddd',
+  fontFamily: 'monospace',
+  fontSize: 13,
+}
+const headerStyle: React.CSSProperties = {
+  ...cellStyle, background: '#252545', color: '#7ecfff', fontStyle: 'italic', fontWeight: 'bold',
+}
+const augStyle: React.CSSProperties = {
+  ...cellStyle, borderLeft: '2px solid #5a5aaa',
+}
+
+function MatrixTable({ variables, matrix }: { variables: string[]; matrix: string[][] }) {
+  return (
+    <div style={{ overflowX: 'auto', marginBottom: 10 }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr>
+            {variables.map(v => <th key={v} style={headerStyle}>{v}</th>)}
+            <th style={{ ...headerStyle, ...augStyle }}>b</th>
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.map((row, i) => (
+            <tr key={i} style={{ background: i % 2 === 1 ? '#1e1e35' : 'transparent' }}>
+              {row.slice(0, -1).map((cell, j) => <td key={j} style={cellStyle}>{cell}</td>)}
+              <td style={augStyle}>{row[row.length - 1]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function ResultPanel({ result, mirroredPairs }: Props) {
   const [showSteps, setShowSteps] = useState(false)
 
@@ -41,22 +79,40 @@ export function ResultPanel({ result, mirroredPairs }: Props) {
 
   return (
     <div style={{ marginTop: 16 }}>
-      <button
-        onClick={() => setShowSteps(s => !s)}
-        style={{
-          background: '#252545',
-          border: '1px solid #4a4a7a',
-          borderRadius: 6,
-          color: '#a0a0cc',
-          fontSize: 13,
-          padding: '5px 14px',
-          cursor: 'pointer',
+      {/* Augmented matrix — always visible */}
+      {result.initialMatrix && (
+        <div style={{
+          background: '#1a1a2e',
+          border: '1.5px solid #2a2a4a',
+          borderRadius: 10,
+          padding: '12px 16px',
           marginBottom: 12,
-        }}
-      >
-        {showSteps ? '▲ Скрыть решение' : '▼ Показать решение'}
-      </button>
+        }}>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Расширенная матрица системы:</div>
+          <MatrixTable variables={result.variables} matrix={result.initialMatrix} />
+        </div>
+      )}
 
+      {/* Toggle for Gauss steps only */}
+      {result.steps && result.steps.length > 0 && (
+        <button
+          onClick={() => setShowSteps(s => !s)}
+          style={{
+            background: '#252545',
+            border: '1px solid #4a4a7a',
+            borderRadius: 6,
+            color: '#a0a0cc',
+            fontSize: 13,
+            padding: '5px 14px',
+            cursor: 'pointer',
+            marginBottom: 12,
+          }}
+        >
+          {showSteps ? '▲ Скрыть шаги Гаусса' : '▼ Показать шаги Гаусса'}
+        </button>
+      )}
+
+      {/* Gauss steps (toggled) */}
       {showSteps && result.initialMatrix && result.steps && (
         <div style={{ marginBottom: 16 }}>
           <SolutionSteps
@@ -64,11 +120,13 @@ export function ResultPanel({ result, mirroredPairs }: Props) {
             initialMatrix={result.initialMatrix}
             steps={result.steps}
             backSubstitution={result.backSubstitution ?? []}
+            hideInitialMatrix
           />
           <hr style={{ border: 'none', borderTop: '1px solid #2a2a4a', margin: '16px 0' }} />
         </div>
       )}
 
+      {/* Answer block */}
       <div style={{
         background: '#1a2a1a',
         border: '1.5px solid #2a5a2a',
